@@ -1,10 +1,10 @@
 import sys
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, QPushButton, QGridLayout, QHBoxLayout, QDialog, QLabel, QLineEdit, QDialogButtonBox, QCheckBox
-# import alighHCenter from PySide6.QtCore
-from PySide6.QtCore import Qt
 import threading
 import requests
 import os
+import uuid
+
 
 
 
@@ -36,11 +36,6 @@ class URLInputDialog(QDialog):
     def getURL(self):
         return self.url_input.text()
     
-
-
-
-
-
 
 
 
@@ -87,7 +82,6 @@ class TopBarLayout(QHBoxLayout):
                 checkbox = cell_widget.findChild(QCheckBox)
                 if checkbox and checkbox.isChecked():
                     self.pauseDownload(i)
-                    continue
             i += 1
     
     def resumeChecked(self):
@@ -100,7 +94,6 @@ class TopBarLayout(QHBoxLayout):
                 checkbox = cell_widget.findChild(QCheckBox)
                 if checkbox and checkbox.isChecked():
                     self.resumeDownload(i)
-                    continue
             i += 1
 
     def deleteAll(self):
@@ -132,9 +125,6 @@ class SideBarLayout(QVBoxLayout):
 
 
 
-            
-
-
 
 class DownloadLayout(QVBoxLayout):
 
@@ -155,10 +145,9 @@ class DownloadLayout(QVBoxLayout):
         self.addWidget(add_button)
     
     def addDownload(self):
-        # dialog = URLInputDialog()
-        # if dialog.exec() == QDialog.Accepted:
-        #     url = dialog.getURL()
-        url = 'https://testfile.org/1.3GBiconpng'
+        dialog = URLInputDialog()
+        if dialog.exec() == QDialog.Accepted:
+            url = dialog.getURL()
         if not url:
             return
         
@@ -198,31 +187,28 @@ class DownloadLayout(QVBoxLayout):
         thread.start()
 
     def downloadFile(self, url, row_position):
-        response = requests.get(url, stream=True)
+        response = requests.get(url, stream=True, allow_redirects=True, timeout=10)
         size = response.headers.get('content-length')
         size = int(size)
         downloaded = 0
+        temp_filename = uuid.uuid4().hex
         filename = os.path.basename(url)
         with self.lock:
-            with open(filename, 'wb') as file:
+            with open(temp_filename, 'wb') as file:
                 for data in response.iter_content(chunk_size=1024):
                     downloaded += len(data)
                     file.write(data)
                     self.updateProgress(row_position, downloaded, size)
-        os.rename('temp', 'downloaded_file')
+        os.rename(temp_filename, filename)
 
     def updateProgress(self, row_position, downloaded, size):
         completed = round(downloaded/size * 100, 2)
-        time_left = str((size - downloaded) / 1024**2) + ' MB'
+        time_left = 'Time left'
         transfer_rate = 'Transfer rate'
 
         self.table.item(row_position, 3).setText(str(completed))
         self.table.item(row_position, 4).setText(str(time_left))
         self.table.item(row_position, 5).setText(str(transfer_rate))
-
-
-
-
 
 
 
